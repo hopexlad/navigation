@@ -121,6 +121,11 @@
     </style>
 </head>
 <body>
+    <div class="ui-container">
+    <button class="button" id="toggle-image-button">Satellite image</button>
+</div>
+<div id="image-container"></div>
+
     <div class="chat-container">
     <div class="chat-header">Campus Assistant</div>
     <div class="chat-box" id="chat-box"></div>
@@ -242,7 +247,25 @@
                 { name: "Secretary Office", coords: [34.37, 32.00] }
            
             ]
-        };
+        };document.getElementById("toggle-image-button").addEventListener("click", function () {
+    let container = document.getElementById("image-container");
+    let existingImage = document.getElementById("dynamic-image");
+
+    if (existingImage) {
+        container.removeChild(existingImage);  // Remove image if it exists
+    } else {
+        let img = document.createElement("img");
+        img.src = "new-image.png";  // Replace with your actual image
+        img.alt = "Dynamic Image";
+        img.id = "dynamic-image";
+        img.style.width = "200px";  // Adjust size as needed
+        img.style.display = "block";
+        img.style.margin = "10px auto";  // Centering
+
+        container.appendChild(img);
+    }
+});
+        
         var imageOverlay = L.imageOverlay(campus.image, campus.bounds).addTo(map);
         map.fitBounds(campus.bounds);
         var icon = L.icon({ iconUrl: 'ok (2).png', iconSize: [20, 20] });
