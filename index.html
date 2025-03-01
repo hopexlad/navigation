@@ -7,8 +7,26 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <script src="https://hammerjs.github.io/dist/hammer.min.js"></script>
     <style>
-        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; }
+        /* Global Reset */
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: Arial, sans-serif; }
+        body, html { height: 100%; background-color: #f4f4f4; transition: background 0.3s; }
         #map { width: 100vw; height: 100vh; }
+
+        /* Buttons & UI */
+        .button {
+            padding: 10px;
+            width: 140px;
+            text-align: center;
+            font-weight: bold;
+            background: #007BFF;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: background 0.3s, transform 0.2s;
+        }
+        .button:hover { background: #0056b3; transform: scale(1.05); }
+
         .ui-container {
             position: absolute;
             bottom: 120px;
@@ -17,17 +35,8 @@
             flex-direction: column;
             z-index: 1001;
         }
-        .button {
-            margin: 5px 0;
-            padding: 10px;
-            width: 120px;
-            text-align: center;
-            background: green;
-            color: white;
-            border: none;
-            cursor: pointer;
-            border-radius: 5px;
-        }
+
+        /* Search Bar */
         .search-container {
             position: absolute;
             top: 10px;
@@ -35,287 +44,152 @@
             transform: translateX(-50%);
             z-index: 1002;
             background: rgba(255, 255, 255, 0.9);
-            padding: 8px;
+            padding: 10px;
             border-radius: 8px;
             display: flex;
             gap: 8px;
             align-items: center;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
         }
-        .autocomplete-container {
-            position: relative;
-            display: inline-block;
-        }
-        .suggestions {
-            position: absolute;
-            top: 100%;
-            left: 0;
-            width: 100%;
-            background: white;
-            border: 1px solid #ccc;
-            max-height: 150px;
-            overflow-y: auto;
-            z-index: 1003;
-        }
-        .suggestions div {
-            padding: 8px;
-            cursor: pointer;
-        }
-        .suggestions div:hover {
-            background: #ddd;
-        }
+
         .search-container input {
             width: 180px;
-            padding: 6px;
+            padding: 8px;
             border: 1px solid #ccc;
             border-radius: 5px;
+            font-size: 14px;
         }
+
         .search-container button {
-            padding: 6px 12px;
+            padding: 8px 12px;
             border: none;
-            background: green;
+            background: #28a745;
             color: white;
             cursor: pointer;
             border-radius: 5px;
+            font-size: 14px;
+            transition: background 0.3s;
         }
+        .search-container button:hover { background: #218838; }
+
+        /* Chat Box */
         .chat-container {
-        position: absolute;
-        bottom: 20px;
-        left: 20px;
-        width: 300px;
-        background: white;
-        border-radius: 10px;
-        overflow: hidden;
-        box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
-        z-index: 1003;
-    }
-    .chat-header {
-        background: green;
-        color: white;
-        padding: 10px;
-        text-align: center;
-        font-weight: bold;
-    }
-    .chat-box {
-        max-height: 250px;
-        overflow-y: auto;
-        padding: 10px;
-        height: 250px;
-    }
-    .chat-input-container {
-        display: flex;
-        border-top: 1px solid #ccc;
-    }
-    .chat-input-container input {
-        flex: 1;
-        padding: 10px;
-        border: none;
-        outline: none;
-    }
-    .chat-input-container button {
-        padding: 10px;
-        border: none;
-        background: green;
-        color: white;
-        cursor: pointer;
-    }
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            width: 300px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            z-index: 1003;
+            overflow: hidden;
+        }
+        .chat-header {
+            background: #007BFF;
+            color: white;
+            padding: 10px;
+            text-align: center;
+            font-weight: bold;
+        }
+        .chat-box {
+            max-height: 250px;
+            overflow-y: auto;
+            padding: 10px;
+            height: 250px;
+        }
+        .chat-input-container {
+            display: flex;
+            border-top: 1px solid #ccc;
+        }
+        .chat-input-container input {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            outline: none;
+        }
+        .chat-input-container button {
+            padding: 10px;
+            border: none;
+            background: #007BFF;
+            color: white;
+            cursor: pointer;
+        }
+
+        /* Dark Mode */
+        .dark-mode {
+            background-color: #222;
+            color: #fff;
+        }
+        .dark-mode .search-container, .dark-mode .chat-container {
+            background: #333;
+            color: #fff;
+        }
+        .dark-mode .button { background: #555; }
+        .dark-mode .button:hover { background: #777; }
     </style>
 </head>
 <body>
-    <div class="ui-container">
-    <button class="button" id="toggle-image-button">Satellite image</button>
-</div>
-<div id="image-container"></div>
 
-    <div class="chat-container">
-    <div class="chat-header">Campus Assistant</div>
-    <div class="chat-box" id="chat-box"></div>
-    <div class="chat-input-container">
-        <input type="text" id="chat-input" placeholder="Ask something..." />
-        <button id="chat-send">Send</button>
-    </div>
-    </div>
-    <div class="search-container">
-        <div class="autocomplete-container">
-            <input type="text" id="search-input" placeholder="Search rooms..." oninput="showSuggestions(this, 'search-suggestions')" />
-            <div class="suggestions" id="search-suggestions"></div>
-        </div>
-        <button id="search-button">Search</button>
-        <div class="autocomplete-container">
-            <input type="text" id="start-location" placeholder="Choose your location..." oninput="showSuggestions(this, 'start-suggestions')" />
-            <div class="suggestions" id="start-suggestions"></div>
-        </div>
-        <div class="autocomplete-container">
-            <input type="text" id="destination" placeholder="Your destination..." oninput="showSuggestions(this, 'destination-suggestions')" />
-            <div class="suggestions" id="destination-suggestions"></div>
-        </div>
-        <button id="navigate-button">Go</button>
-    </div>
+    <!-- Dark Mode Toggle -->
+    <button class="button" style="position: absolute; top: 10px; left: 10px;" onclick="toggleDarkMode()">🌙 Toggle Mode</button>
+
     <div class="ui-container">
-        <button class="button" id="rooms-button">Rooms</button>
-        <button class="button" id="recenter-button">Re-Center</button>
+        <button class="button" id="toggle-image-button">Satellite Image</button>
     </div>
+    
+    <div id="image-container"></div>
+
+    <!-- Chat Box -->
+    <div class="chat-container">
+        <div class="chat-header">Campus Assistant</div>
+        <div class="chat-box" id="chat-box"></div>
+        <div class="chat-input-container">
+            <input type="text" id="chat-input" placeholder="Ask something..." />
+            <button id="chat-send">Send</button>
+        </div>
+    </div>
+
+    <!-- Search Bar -->
+    <div class="search-container">
+        <input type="text" id="search-input" placeholder="Search rooms..." />
+        <button id="search-button">Search</button>
+    </div>
+
     <div id="map"></div>
+
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script>
-        const chatBox = document.getElementById("chat-box");
-    const chatInput = document.getElementById("chat-input");
-    const chatSend = document.getElementById("chat-send");
-
-    function appendMessage(sender, message) {
-        const messageDiv = document.createElement("div");
-        messageDiv.textContent = `${sender}: ${message}`;
-        chatBox.appendChild(messageDiv);
-        chatBox.scrollTop = chatBox.scrollHeight;
-    }
-
-    function processUserMessage(message) {
-        let response = "I didn't understand that.";
-        message = message.toLowerCase();
-
-        if (message.includes("where is")) {
-            let roomName = message.replace("where is", "").trim();
-            let foundRoom = campus.markers.find(room => room.name.toLowerCase().includes(roomName));
-            if (foundRoom) {
-                highlightRoom(foundRoom);
-                response = `Navigating to ${foundRoom.name}`;
-            } else {
-                response = "Room not found!";
-            }
-        } else if (message.includes("recenter")) {
-            map.fitBounds(campus.bounds);
-            response = "Map centered.";
-        } else if (message.includes("show all rooms")) {
-            toggleRooms();
-            response = "Showing all room markers.";
-        }
-
-        appendMessage("Assistant", response);
-    }
-
-    chatSend.addEventListener("click", function() {
-        const userMessage = chatInput.value.trim();
-        if (userMessage) {
-            appendMessage("You", userMessage);
-            processUserMessage(userMessage);
-            chatInput.value = "";
-        }
-    });
-
-    chatInput.addEventListener("keypress", function(event) {
-        if (event.key === "Enter") chatSend.click();
-    });
         var map = L.map('map', { minZoom: -2, maxZoom: 4, crs: L.CRS.Simple });
         var campus = {
-            image: 'campus (2).png',
+            image: 'canpus (2).png',
             bounds: [[0, 0], [302, 754]],
             markers: [
-                  { name: "Food Court 1", coords: [214.83, 717.00] },
-                { name: "Food Court 2", coords: [66.75, 717.00] },
-                { name: "Auditorium 1", coords: [250.85, 601.00] },
-                { name: "Auditorium 2", coords: [54.75, 601.00] },
-                { name: "Seminar Hall", coords: [154.80, 610.00] },
-                { name: "Hostelers Mess", coords: [111.78, 603.00] },
-                { name: "Mess", coords: [190.82, 603.00] },
-                { name: "Lab 4", coords: [201.83, 514.00] },
-                { name: "Lab 3", coords: [102.77, 512.00] },
                 { name: "Library", coords: [47.74, 512.00] },
-                { name: "NCC", coords: [33.74, 471.00] },
-                { name: "OAT", coords: [150.80, 429.00] },
-                { name: "Lab 5", coords: [264.86, 482.00] },
-                { name: "PEA", coords: [263.86, 385.00] },
-                { name: "Stock Room", coords: [264.84, 353.00] },
-                { name: "Transport Office", coords: [262.86, 329.00] },
-                { name: "Sick Room", coords: [206.83, 351.00] },
-                { name: "CG114", coords: [181.82, 355.00] },
-                { name: "CG113", coords: [119.78, 354.00] },
-                { name: "CG112", coords: [93.77, 354.00] },
                 { name: "Lab 1", coords: [38.74, 377.00] },
-                { name: "Zig-Zag", coords: [271.87, 263.00] },
-                { name: "Boys Restroom", coords: [33.87, 306.50] },
-                { name: "Girls Restroom", coords: [35.87, 233.00] },
-                { name: "Admission Office", coords: [263.99, 193.00] },
-                { name: "Falcon Hall", coords: [264.49, 152.50] },
-                { name: "Office", coords: [196.46, 171.00] },
-                { name: "Exam Cell", coords: [107.91, 172.50] },
-                { name: "Guest Waiting", coords: [33.87, 152.50] },
-                { name: "Oasis", coords: [33.87, 65.00] },
-                { name: "Placement Waiting Room", coords: [225.98, 24.00] },
-                { name: "Master Board Room", coords: [109.41, 16.00] },
-                { name: "Oak Leaf", coords: [74.89, 18.00] },
-               
-                { name: "Principal Office", coords: [36.87, 11.50] },
-                { name: "Secretary Office", coords: [34.37, 32.00] }
-           
+                { name: "Office", coords: [196.46, 171.00] }
             ]
-        };document.getElementById("toggle-image-button").addEventListener("click", function () {
-    let container = document.getElementById("image-container");
-    let existingImage = document.getElementById("dynamic-image");
-
-    if (existingImage) {
-        container.removeChild(existingImage);  // Remove image if it exists
-    } else {
-        let img = document.createElement("img");
-        img.src = "new-image.png";  // Replace with your actual image
-        img.alt = "Dynamic Image";
-        img.id = "dynamic-image";
-        img.style.width = "200px";  // Adjust size as needed
-        img.style.display = "block";
-        img.style.margin = "10px auto";  // Centering
-
-        container.appendChild(img);
-    }
-});
+        };
         
         var imageOverlay = L.imageOverlay(campus.image, campus.bounds).addTo(map);
         map.fitBounds(campus.bounds);
+
         var icon = L.icon({ iconUrl: 'ok (2).png', iconSize: [20, 20] });
-        var roomMarkers = [];
-        function toggleRooms() {
-            if (roomMarkers.length) {
-                roomMarkers.forEach(marker => map.removeLayer(marker));
-                roomMarkers = [];
-            } else {
-                campus.markers.forEach(room => {
-                    var marker = L.marker(room.coords, { icon }).addTo(map)
-                        .bindTooltip(room.name, { permanent: false, direction: 'top' });
-                    roomMarkers.push(marker);
-                });
-            }
-        }
-        function highlightRoom(room) {
-            map.setView(room.coords, 3);
-            var marker = L.marker(room.coords, { icon }).addTo(map)
-                .bindTooltip(room.name, { permanent: true, direction: 'top' });
-            setTimeout(() => map.removeLayer(marker), 3000);
-        }
-        function showSuggestions(inputElement, suggestionBoxId) {
-            var inputValue = inputElement.value.toLowerCase();
-            var suggestionBox = document.getElementById(suggestionBoxId);
-            suggestionBox.innerHTML = "";
-            if (!inputValue) return;
-            var filteredRooms = campus.markers.map(room => room.name).filter(room => room.toLowerCase().includes(inputValue));
-            filteredRooms.forEach(room => {
-                var div = document.createElement("div");
-                div.textContent = room;
-                div.onclick = function() {
-                    inputElement.value = room;
-                    suggestionBox.innerHTML = "";
-                };
-                suggestionBox.appendChild(div);
-            });
-        }
+
+        campus.markers.forEach(room => {
+            L.marker(room.coords, { icon }).addTo(map)
+                .bindTooltip(room.name, { permanent: false, direction: 'top' });
+        });
+
         document.getElementById("search-button").addEventListener("click", function () {
             var searchValue = document.getElementById("search-input").value.toLowerCase();
             var foundRoom = campus.markers.find(room => room.name.toLowerCase().includes(searchValue));
-            if (foundRoom) highlightRoom(foundRoom);
+            if (foundRoom) map.setView(foundRoom.coords, 3);
             else alert("Room not found!");
         });
-        document.getElementById("search-input").addEventListener("keypress", function(event) {
-            if (event.key === "Enter") document.getElementById("search-button").click();
-        });
-        document.getElementById("rooms-button").addEventListener("click", toggleRooms);
-        document.getElementById("recenter-button").addEventListener("click", () => map.fitBounds(campus.bounds));
+
+        function toggleDarkMode() {
+            document.body.classList.toggle("dark-mode");
+        }
     </script>
 </body>
 </html>
-
