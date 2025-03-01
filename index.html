@@ -1,29 +1,170 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Campus Map</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"/>
-    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <title>Interactive Campus Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://hammerjs.github.io/dist/hammer.min.js"></script>
+    <style>
+        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; }
+        #map { width: 100vw; height: 100vh; }
+        .ui-container {
+            position: absolute;
+            bottom: 120px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            z-index: 1001;
+        }
+        .button {
+            margin: 5px 0;
+            padding: 10px;
+            width: 120px;
+            text-align: center;
+            background: green;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        .search-container {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1002;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 8px;
+            border-radius: 8px;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .autocomplete-container {
+            position: relative;
+            display: inline-block;
+        }
+        .suggestions {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 100%;
+            background: white;
+            border: 1px solid #ccc;
+            max-height: 150px;
+            overflow-y: auto;
+            z-index: 1003;
+        }
+        .suggestions div {
+            padding: 8px;
+            cursor: pointer;
+        }
+        .suggestions div:hover {
+            background: #ddd;
+        }
+        .search-container input {
+            width: 180px;
+            padding: 6px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        .search-container button {
+            padding: 6px 12px;
+            border: none;
+            background: green;
+            color: white;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+    </style>
 </head>
 <body>
-
-    <div id="map" style="width: 100%; height: 500px;"></div>
-
+    <div class="search-container">
+        <div class="autocomplete-container">
+            <input type="text" id="search-input" placeholder="Search rooms..." oninput="showSuggestions(this, 'search-suggestions')" />
+            <div class="suggestions" id="search-suggestions"></div>
+        </div>
+        <button id="search-button">Search</button>
+        <div class="autocomplete-container">
+            <input type="text" id="start-location" placeholder="Choose your location..." oninput="showSuggestions(this, 'start-suggestions')" />
+            <div class="suggestions" id="start-suggestions"></div>
+        </div>
+        <div class="autocomplete-container">
+            <input type="text" id="destination" placeholder="Your destination..." oninput="showSuggestions(this, 'destination-suggestions')" />
+            <div class="suggestions" id="destination-suggestions"></div>
+        </div>
+        <button id="navigate-button">Go</button>
+    </div>
+    <div class="ui-container">
+        <button class="button" id="rooms-button">Rooms</button>
+        <button class="button" id="recenter-button">Re-Center</button>
+    </div>
+    <div id="map"></div>
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script>
-        // Initialize the map
-        var map = L.map('map', { crs: L.CRS.Simple });
-
-        // Define image size (Change based on your PNG size)
-        var imgWidth = 754, imgHeight = 302;
-        var bounds = [[0, 0], [imgHeight, imgWidth]];
-
-        // Load campus map as background
-        L.imageOverlay('campus (2).png', bounds).addTo(map);
-        map.fitBounds(bounds);
+        var map = L.map('map', { minZoom: -2, maxZoom: 4, crs: L.CRS.Simple });
+        var campus = {
+            image: 'campus (2).png',
+            bounds: [[0, 0], [302, 754]],
+            markers: [
+                { name: "College Main Gate", coords: [295.89, 263.14] },
+                { name: "Library", coords: [51.79, 556.20] },
+                { name: "Food Court 1", coords: [214.83, 717.00] },
+                { name: "Auditorium 1", coords: [250.85, 601.00] },
+                { name: "Seminar Hall", coords: [154.80, 610.00] }
+            ]
+        };
+        var imageOverlay = L.imageOverlay(campus.image, campus.bounds).addTo(map);
+        map.fitBounds(campus.bounds);
+        var icon = L.icon({ iconUrl: 'ok (2).png', iconSize: [20, 20] });
+        var roomMarkers = [];
+        function toggleRooms() {
+            if (roomMarkers.length) {
+                roomMarkers.forEach(marker => map.removeLayer(marker));
+                roomMarkers = [];
+            } else {
+                campus.markers.forEach(room => {
+                    var marker = L.marker(room.coords, { icon }).addTo(map)
+                        .bindTooltip(room.name, { permanent: false, direction: 'top' });
+                    roomMarkers.push(marker);
+                });
+            }
+        }
+        function highlightRoom(room) {
+            map.setView(room.coords, 3);
+            var marker = L.marker(room.coords, { icon }).addTo(map)
+                .bindTooltip(room.name, { permanent: true, direction: 'top' });
+            setTimeout(() => map.removeLayer(marker), 3000);
+        }
+        function showSuggestions(inputElement, suggestionBoxId) {
+            var inputValue = inputElement.value.toLowerCase();
+            var suggestionBox = document.getElementById(suggestionBoxId);
+            suggestionBox.innerHTML = "";
+            if (!inputValue) return;
+            var filteredRooms = campus.markers.map(room => room.name).filter(room => room.toLowerCase().includes(inputValue));
+            filteredRooms.forEach(room => {
+                var div = document.createElement("div");
+                div.textContent = room;
+                div.onclick = function() {
+                    inputElement.value = room;
+                    suggestionBox.innerHTML = "";
+                };
+                suggestionBox.appendChild(div);
+            });
+        }
+        document.getElementById("search-button").addEventListener("click", function () {
+            var searchValue = document.getElementById("search-input").value.toLowerCase();
+            var foundRoom = campus.markers.find(room => room.name.toLowerCase().includes(searchValue));
+            if (foundRoom) highlightRoom(foundRoom);
+            else alert("Room not found!");
+        });
+        document.getElementById("search-input").addEventListener("keypress", function(event) {
+            if (event.key === "Enter") document.getElementById("search-button").click();
+        });
+        document.getElementById("rooms-button").addEventListener("click", toggleRooms);
+        document.getElementById("recenter-button").addEventListener("click", () => map.fitBounds(campus.bounds));
     </script>
-
 </body>
 </html>
+
