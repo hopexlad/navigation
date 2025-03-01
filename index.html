@@ -77,9 +77,58 @@
             cursor: pointer;
             border-radius: 5px;
         }
+        .chat-container {
+        position: absolute;
+        bottom: 20px;
+        left: 20px;
+        width: 300px;
+        background: white;
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+        z-index: 1003;
+    }
+    .chat-header {
+        background: green;
+        color: white;
+        padding: 10px;
+        text-align: center;
+        font-weight: bold;
+    }
+    .chat-box {
+        max-height: 250px;
+        overflow-y: auto;
+        padding: 10px;
+        height: 250px;
+    }
+    .chat-input-container {
+        display: flex;
+        border-top: 1px solid #ccc;
+    }
+    .chat-input-container input {
+        flex: 1;
+        padding: 10px;
+        border: none;
+        outline: none;
+    }
+    .chat-input-container button {
+        padding: 10px;
+        border: none;
+        background: green;
+        color: white;
+        cursor: pointer;
+    }
     </style>
 </head>
 <body>
+    <div class="chat-container">
+    <div class="chat-header">Campus Assistant</div>
+    <div class="chat-box" id="chat-box"></div>
+    <div class="chat-input-container">
+        <input type="text" id="chat-input" placeholder="Ask something..." />
+        <button id="chat-send">Send</button>
+    </div>
+</div
     <div class="search-container">
         <div class="autocomplete-container">
             <input type="text" id="search-input" placeholder="Search rooms..." oninput="showSuggestions(this, 'search-suggestions')" />
@@ -103,6 +152,53 @@
     <div id="map"></div>
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script>
+        const chatBox = document.getElementById("chat-box");
+    const chatInput = document.getElementById("chat-input");
+    const chatSend = document.getElementById("chat-send");
+
+    function appendMessage(sender, message) {
+        const messageDiv = document.createElement("div");
+        messageDiv.textContent = `${sender}: ${message}`;
+        chatBox.appendChild(messageDiv);
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    function processUserMessage(message) {
+        let response = "I didn't understand that.";
+        message = message.toLowerCase();
+
+        if (message.includes("where is")) {
+            let roomName = message.replace("where is", "").trim();
+            let foundRoom = campus.markers.find(room => room.name.toLowerCase().includes(roomName));
+            if (foundRoom) {
+                highlightRoom(foundRoom);
+                response = `Navigating to ${foundRoom.name}`;
+            } else {
+                response = "Room not found!";
+            }
+        } else if (message.includes("recenter")) {
+            map.fitBounds(campus.bounds);
+            response = "Map centered.";
+        } else if (message.includes("show all rooms")) {
+            toggleRooms();
+            response = "Showing all room markers.";
+        }
+
+        appendMessage("Assistant", response);
+    }
+
+    chatSend.addEventListener("click", function() {
+        const userMessage = chatInput.value.trim();
+        if (userMessage) {
+            appendMessage("You", userMessage);
+            processUserMessage(userMessage);
+            chatInput.value = "";
+        }
+    });
+
+    chatInput.addEventListener("keypress", function(event) {
+        if (event.key === "Enter") chatSend.click();
+    });
         var map = L.map('map', { minZoom: -2, maxZoom: 4, crs: L.CRS.Simple });
         var campus = {
             image: 'campus (2).png',
